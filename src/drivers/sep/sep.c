@@ -1228,6 +1228,28 @@ void sep_auto(const char* cmd, char* args)
     }
 }
 
+static void sep_fwsend(const char *cmd, char *args) {
+    if (!loader_xfer_recv_count) {
+        iprintf("No data received. Use /send to upload SEPOS IMG4 first.\n");
+        return;
+    }
+    uint32_t fw_len = loader_xfer_recv_count;
+    iprintf("Received %u bytes of SEPOS firmware\n", fw_len);
+    if (!gSEPFW) {
+        gSEPFW = alloc_contig(fw_len);
+        if (!gSEPFW) {
+            iprintf("Failed to allocate %u bytes for SEPOS firmware\n", fw_len);
+            return;
+        }
+    }
+    memcpy(gSEPFW, loader_xfer_recv_data, fw_len);
+    gSEPFWLen = fw_len;
+    cache_clean_and_invalidate(gSEPFW, fw_len);
+    loader_xfer_recv_count = 0;
+    iprintf("SEPOS firmware loaded into gSEPFW at %p (%u bytes)\n", gSEPFW, fw_len);
+    iprintf("You can now run: sep observe 0 0\n");
+}
+
 static struct sep_command command_table[] = {
     SEP_COMMAND("help", "show usage", sep_help),
     SEP_COMMAND("auto", "automatically decide what to do", sep_auto),
@@ -1249,6 +1271,7 @@ static struct sep_command command_table[] = {
     SEP_COMMAND("shc", "get sep payload shellcode", sep_shc),
     SEP_COMMAND("replay", "replay a previous shellcode", sep_replay),
     SEP_COMMAND("load", "load a shellcode from usb", sep_load),
+    SEP_COMMAND("fwsend", "copy /send data into gSEPFW for sepos boot (iOS 12)", sep_fwsend),
 #endif
     SEP_COMMAND("encrypt", "encrypt a kbag (requires pwned SEPROM)", sep_aes_encrypt),
     SEP_COMMAND("decrypt", "decrypt a kbag (requires pwned SEPROM)", sep_aes_decrypt),
